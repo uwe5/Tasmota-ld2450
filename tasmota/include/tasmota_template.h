@@ -214,6 +214,7 @@ enum UserSelectablePins {
   GPIO_HDMI_CEC,                        // Support for HDMI CEC
   GPIO_HC8_RXD,                         // HC8 Serial interface
   GPIO_I2S_DAC,                         // Audio DAC support for ESP32 and ESP32S2
+  GPIO_LD2450_TX, GPIO_LD2450_RX,      // HLK-LD2450
   GPIO_SENSOR_END };
 
 // Error as warning to rethink GPIO usage with max 2045
@@ -475,6 +476,7 @@ const char kSensorNames[] PROGMEM =
   D_SENSOR_HDMI_CEC "|"
   D_SENSOR_HC8_RX "|"
   D_SENSOR_I2S_DAC "|"
+  D_SENSOR_LD2450_TX "|" D_SENSOR_LD2450_RX "|"
   ;
 
 const char kSensorNamesFixed[] PROGMEM =
@@ -1051,6 +1053,10 @@ const uint16_t kGpioNiceList[] PROGMEM = {
 #ifdef USE_LD2410                       // xsns_102_ld2410.ino
   AGPIO(GPIO_LD2410_TX),                // HLK-LD2410 Serial interface
   AGPIO(GPIO_LD2410_RX),                // HLK-LD2410 Serial interface
+#endif
+#ifdef USE_LD2450                       // xsns_124_ld2450.ino
+  AGPIO(GPIO_LD2450_TX),                // HLK-LD2450 Serial interface
+  AGPIO(GPIO_LD2450_RX),                // HLK-LD2450 Serial interface
 #endif
 #ifdef USE_LOX_O2                       // xsns_105_lox_o2.ino
   AGPIO(GPIO_LOX_O2_RX),                // LuminOx Oxygen Sensor LOX-O2 Serial interface

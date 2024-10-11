@@ -843,6 +843,8 @@
 //  #define VINDRIKTNING_SHOW_PM1                  // Display undocumented/supposed PM1.0 values
 //  #define VINDRIKTNING_SHOW_PM10                 // Display undocumented/supposed PM10 values
 //#define USE_LD2410                               // Add support for HLK-LD2410 24GHz smart wave motion sensor (+2k8 code)
+  #define USE_LD2450                               // Add support for HLK-LD2450 24GHz smart wave motion sensor (+4k3 code)
+  #define USE_LD2450_RADAR                         // Add support for HLK-LD2450 24GHz smart wave motion sensor Radar page (+4k5 code)
 //#define USE_LOX_O2                               // Add support for LuminOx LOX O2 Sensor (+0k8 code)
 //#define USE_GM861                                // Add support for GM861 1D and 2D Bar Code Reader (+1k3 code)
 //  #define GM861_DECODE_AIM                       // Decode AIM-id (+0k3 code)
