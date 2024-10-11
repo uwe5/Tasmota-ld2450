@@ -1,7 +1,10 @@
 ![LD2450](/info/LD2450_A.jpg)
 
 This is a modified version (prerelease-13.2) that supports the 2D radar LD2450.
-Run on a SuperMini ESP32-C3 (aliexpress), Vorlage: {"NAME":"SuperMini ESP32-C3","GPIO":[1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1],"FLAG":0,"BASE":1}
+
+Run on a SuperMini ESP32-C3 (aliexpress), Vorlage: 
+{"NAME":"SuperMini ESP32-C3","GPIO":[1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1],"FLAG":0,"BASE":1}
+
 Configuration: see xsns_114_ld2450.ino and cmd ld2450_help on the console!
 
 ![LD2450](/info/LD2450_B.png)
