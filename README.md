@@ -5,6 +5,7 @@ This is a modified version (prerelease-13.2) that supports the 2D radar LD2450.
 ![LD2450](/info/LD2450_B.png)
 ![LD2450](/info/LD2450_C.png)
 ![LD2450](/info/LD2450_D.png)
+![LD2450 config](/info/LD2450_config.png)
 
 
 ![Tasmota logo](/tools/logo/TASMOTA_FullLogo_Vector.svg#gh-light-mode-only)![Tasmota logo](/tools/logo/TASMOTA_FullLogo_Vector_White.svg#gh-dark-mode-only)
