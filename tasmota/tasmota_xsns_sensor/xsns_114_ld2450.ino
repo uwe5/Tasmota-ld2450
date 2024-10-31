@@ -9,33 +9,38 @@
 
   Settings are stored using unused parameters :
     - Settings->rf_code[2][0] : Presence detection timeout (sec.)
-    - Settings->rf_code[3][0] : zone 0 x1 detection point (x10cm)
-    - Settings->rf_code[3][1] : zone 0 x2 detection point (x10cm)
-    - Settings->rf_code[3][2] : zone 0 y1 detection point (x10cm)
-    - Settings->rf_code[3][3] : zone 0 y2 detection point (x10cm)
-    - Settings->rf_code[3][4] : zone 1 x1 detection point (x10cm)
-    - Settings->rf_code[3][5] : zone 1 x2 detection point (x10cm)
-    - Settings->rf_code[3][6] : zone 1 y1 detection point (x10cm)
-    - Settings->rf_code[3][7] : zone 1 y2 detection point (x10cm)
+    - Settings->rf_code[3][0] : zone 1 x1 detection point (x10cm)
+    - Settings->rf_code[3][1] : zone 1 x2 detection point (x10cm)
+    - Settings->rf_code[3][2] : zone 1 y1 detection point (x10cm)
+    - Settings->rf_code[3][3] : zone 1 y2 detection point (x10cm)
+    - Settings->rf_code[3][4] : zone 2 x1 detection point (x10cm)
+    - Settings->rf_code[3][5] : zone 2 x2 detection point (x10cm)
+    - Settings->rf_code[3][6] : zone 2 y1 detection point (x10cm)
+    - Settings->rf_code[3][7] : zone 2 y2 detection point (x10cm)
 ...
-    - Settings->rf_code[5][0] : zone 4 x1 detection point (x10cm)
-    - Settings->rf_code[5][1] : zone 4 x2 detection point (x10cm)
-    - Settings->rf_code[5][2] : zone 4 y1 detection point (x10cm)
-    - Settings->rf_code[5][3] : zone 4 y2 detection point (x10cm)
-    - Settings->rf_code[5][4] : zone 5 x1 detection point (x10cm)
-    - Settings->rf_code[5][5] : zone 5 x2 detection point (x10cm)
-    - Settings->rf_code[5][6] : zone 5 y1 detection point (x10cm)
-    - Settings->rf_code[5][7] : zone 5 y2 detection point (x10cm)
+    - Settings->rf_code[6][0] : zone 7 x1 detection point (x10cm)
+    - Settings->rf_code[6][1] : zone 7 x2 detection point (x10cm)
+    - Settings->rf_code[6][2] : zone 7 y1 detection point (x10cm)
+    - Settings->rf_code[6][3] : zone 7 y2 detection point (x10cm)
+    - Settings->rf_code[6][4] : zone 8 x1 detection point (x10cm)
+    - Settings->rf_code[6][5] : zone 8 x2 detection point (x10cm)
+    - Settings->rf_code[6][6] : zone 8 y1 detection point (x10cm)
+    - Settings->rf_code[6][7] : zone 8 y2 detection point (x10cm)
 
-            -       sensor      +
-
-            x1,y1 ..........x2,y1
-              .               .
-              .    detection  .
-              .      zone     .
-              .               .
-            x1,y2 ..........x2,y2
-
+                      x1,y1 ........x2,y1
+                        .  detection  .
+                        .    zone     .
+                      x1,y2 ........x2,y2
+  Settings zones:
+      as an example a smiley zone :)
+        ld2450_reset
+        ld2450_zone 1,-1500, -500,   0,1500
+        ld2450_zone 2,  500, 1500,   0,1500
+        ld2450_zone 3,-2800,-1500,2800,3500
+        ld2450_zone 4, 1500, 2800,2800,3500
+        ld2450_zone 5,-1800, -800,3200,4200
+        ld2450_zone 6,  800, 1800,3200,4200
+        ld2450_zone 7,-1300, 1300,4000,5000                      
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -61,32 +66,36 @@
 #define XSNS_114 114
 
 // constant
-#define LD2450_START_DELAY 10     // sensor startup delay
-#define LD2450_DEFAULT_TIMEOUT 5  // timeout to trigger inactivity [sec]
-#define LD2450_DEFAULT_SAMPLE 10  // number of samples to average
-#define LD2450_DIST_MAX 6000      // default minimum detection distance [mm]
+#define LD2450_START_DELAY 10             // sensor startup delay
+#define LD2450_DEFAULT_TARGET_TIMEOUT 5   // timeout to trigger inactivity [sec]
+#define LD2450_DEFAULT_SAMPLE 10          // number of samples to average
+#define LD2450_DIST_MAX 6000              // default minimum detection distance [mm]
+
+#define LD2450_TRACK_TIME 5   // publication timeout [sec]
+#define LD2450_TRACK_OFF 0    // track targets off
+#define LD2450_TRACK_IN 1     // track targets via MQTT in of the zones
+#define LD2450_TRACK_OUT 2    // track targets via MQTT out of the zones
+#define LD2450_TRACK_INOUT 3  // track targets via MQTT in/out of the zones
 
 #define LD2450_TARGET_MAX 3
 #define LD2450_MSG_SIZE_MAX 32
-#define LD2450_ZONE_MAX 6
+#define LD2450_ZONE_MAX 8
 
-#define LD2450_COLOR_ABSENT "none"
-#define LD2450_COLOR_OUTRANGE "#555"
-#define LD2450_COLOR_PRESENT "#1fa3ec"
+#define LD2450_COLOR_ABSENT   "none"
+#define LD2450_COLOR_OUTRANGE "#555555"
+#define LD2450_COLOR_PRESENT  "#0f76b0"
+#define LD2450_COLOR_ZONE     "#008000"
 
 // strings
 const char D_LD2450_NAME[] PROGMEM = "HLK-LD2450";
 
 // MQTT commands
-//const char kHLKLD2450Commands[] PROGMEM = "ld2450_|help|timeout|reset|dist|zone";
-//void (*const HLKLD2450Command[])(void) PROGMEM = {&CmndLD2450Help, &CmndLD2450Timeout, &CmndLD2450Reset, &CmndLD2450Dist, &CmndLD2450Zone};
-const char kHLKLD2450Commands[] PROGMEM = "ld2450_|help|timeout|reset|zone0|zone1|zone2|zone3|zone4|zone5";
-void (*const HLKLD2450Command[])(void) PROGMEM = {&CmndLD2450Help, &CmndLD2450Timeout, &CmndLD2450Reset, &CmndLD2450Zone0, &CmndLD2450Zone1, &CmndLD2450Zone2, &CmndLD2450Zone3, &CmndLD2450Zone4, &CmndLD2450Zone5};
+const char kHLKLD2450Commands[] PROGMEM = "ld2450_|help|timeout|track|reset|zone";
+void (*const HLKLD2450Command[])(void) PROGMEM = {&CmdLD2450Help, &CmdLD2450SensorTimeout, &CmdLD2450Track, &CmdLD2450Reset, &CmdLD2450Zone};
 
 /****************************************\
  *                 Data
 \****************************************/
-#define LD2450_ZONE_SIZE_MAX 6
 
 // LD2450 received message
 static struct {
@@ -102,7 +111,9 @@ struct {
   int16_t zone_x2[LD2450_ZONE_MAX] = {LD2450_DIST_MAX,0,0,0};   // x2 detection point (-6000 -> 6000 mm)
   int16_t zone_y1[LD2450_ZONE_MAX] = {0,0,0,0};                 // y1 detection point (0 -> 6000 mm)
   int16_t zone_y2[LD2450_ZONE_MAX] = {LD2450_DIST_MAX,0,0,0};   // y2 detection point (O -> 6000 mm)
-  uint8_t timeout = LD2450_DEFAULT_TIMEOUT;                     // default detection timeout
+  uint8_t tracktime = LD2450_TRACK_TIME;                        // default publication time
+  uint8_t trackmode = LD2450_TRACK_IN;
+  uint8_t sensortimeout = LD2450_DEFAULT_TARGET_TIMEOUT;        // timeout to trigger inactivity
 } ld2450_config;
 
 // LD2450 status
@@ -110,18 +121,23 @@ static struct {
   TasmotaSerial *pserial = nullptr;  // pointer to serial port
   bool enabled = false;              // driver is enabled
   uint8_t counter = 0;               // detected targets counter
-  uint32_t timestamp = 0;            // timestamp of last detection
-  bool in_zone[LD2450_ZONE_MAX];     // target n within detection zone
-  bool changed[LD2450_ZONE_MAX];     // zone left or entered
+  uint32_t pubtimestamp = 0;         // timestamp of last publication time
+  uint32_t lastsensortime = 0;       // timestamp of last detection time
 } ld2450_status;
 
-// LD2450 detected targets (x3)
+// zone status
 static struct {
-  int16_t x;      // x coordonnate
-  int16_t y;      // y coordonnate
-  int16_t speed;  // speed
-  uint16_t dist;  // gate size
-  bool zone;      // target within detection zone
+  bool target_in_zone[LD2450_TARGET_MAX];  
+  bool target_in_zone_old[LD2450_TARGET_MAX];  
+} ld2450_zone[LD2450_ZONE_MAX];
+
+// LD2450 detected targets
+static struct {
+  int16_t x;        // x coordonnate
+  int16_t y;        // y coordonnate
+  int16_t speed;    // speed
+  uint16_t dist;    // gate size
+  bool in_zone;     // target within detection in zone
 } ld2450_target[LD2450_TARGET_MAX];
 
 /**************************************************\
@@ -129,164 +145,131 @@ static struct {
 \**************************************************/
 
 // sensor help
-void CmndLD2450Help() {
+void CmdLD2450Help() {
   // help on command
-  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_timeout <value>    = set timeout [sec]"));
-  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_reset              = reset detection zone"));
-//  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_dist <d1,d2>       = set detection distance [mm]"));
-  AddLog(LOG_LEVEL_INFO, PSTR("     d1,d2 : from %d (sensor) to %d (%dm)"), 0, LD2450_DIST_MAX, LD2450_DIST_MAX / 1000);
-  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_zone<z> <x1,x2,y1,y2> = set detection zone [mm]"));
-  AddLog(LOG_LEVEL_INFO, PSTR("     z     : form 0 to %d detection zone"), LD2450_ZONE_MAX-1);
+  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_reset                  = reset detection zone"));
+  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_track <t>,<m>          = track targets via MQTT in/out of the zones"));
+  AddLog(LOG_LEVEL_INFO, PSTR("     t     : publish time [sec]"));
+  AddLog(LOG_LEVEL_INFO, PSTR("     m     : mode, 0=off, 1=targets in zones, 2=targets out zones, 2=targets in & out zones"));
+  AddLog(LOG_LEVEL_INFO, PSTR("     default is track %u,%u"), LD2450_TRACK_TIME, LD2450_TRACK_IN);
+  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_timeout <t>            = timeout [sec] to trigger inactivity"));
+  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_zone <z>               = get detection zone [mm]"));
+  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_zone <z>,<x1,x2,y1,y2> = set detection zone [mm]"));
+  AddLog(LOG_LEVEL_INFO, PSTR("     z     : from 1 to %d detection zone"), LD2450_ZONE_MAX);
   AddLog(LOG_LEVEL_INFO, PSTR("     x1,x2 : from -%d (%dm left) to +%d (%dm right)"), LD2450_DIST_MAX, LD2450_DIST_MAX / 1000, LD2450_DIST_MAX, LD2450_DIST_MAX / 1000);
   AddLog(LOG_LEVEL_INFO, PSTR("     y1,y2 : from %d (sensor) to +%d (%dm)"), 0, LD2450_DIST_MAX, LD2450_DIST_MAX / 1000);
-  AddLog(LOG_LEVEL_INFO, PSTR("     default is zone0 %d,%d,%d,%d"), -LD2450_DIST_MAX, LD2450_DIST_MAX, 0, LD2450_DIST_MAX);
-  AddLog(LOG_LEVEL_INFO, PSTR("     ld2450_zone<z> 0,0,0,0 : disable zone detection"));
+  AddLog(LOG_LEVEL_INFO, PSTR("     default is zone 1,%d,%d,%d,%d"), -LD2450_DIST_MAX, LD2450_DIST_MAX, 0, LD2450_DIST_MAX);
+  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_zone <z>,0,0,0,0 : disable zone detection"));
   ResponseCmndDone();
 }
 
 // sensor specific detection timeout
-void CmndLD2450Timeout() {
+void CmdLD2450SensorTimeout() {
   if (XdrvMailbox.payload > 0) {
-    ld2450_config.timeout = XdrvMailbox.payload;
+    ld2450_config.sensortimeout = XdrvMailbox.payload;
     LD2450SaveConfig();
   }
-  ResponseCmndNumber(ld2450_config.timeout);
+  ResponseCmndNumber(ld2450_config.sensortimeout);
+}
+
+// target publication time
+void CmdLD2450Track() {
+  char str_answer[8 +1];
+
+  strlcpy(str_answer, XdrvMailbox.data, 8 +1);
+  if (strlen(str_answer) > 0) {
+    char *pstr_token = strtok(str_answer, ",");
+    if (pstr_token != nullptr) {
+      ld2450_config.tracktime = atoi(pstr_token);
+      pstr_token = strtok(nullptr, ",");
+      if (pstr_token != nullptr) ld2450_config.trackmode = atoi(pstr_token);      
+      LD2450SaveConfig();
+    }
+  }
+
+  LD2450LoadConfig();
+  sprintf(str_answer, "%d,%d", ld2450_config.tracktime, ld2450_config.trackmode);
+  ResponseCmndChar(str_answer);
 }
 
 // sensor detection zone reset
 void LD2450ConfigReset() {
   uint8_t index;
-  uint8_t dist;
+  int16_t dist = LD2450_DIST_MAX;
   // set default and save config
   for (index = 0; index < LD2450_ZONE_MAX; index++) {
-    dist = (index == 0) ? LD2450_DIST_MAX : 0;
     ld2450_config.zone_x1[index] = -dist;
     ld2450_config.zone_x2[index] = dist;
     ld2450_config.zone_y1[index] = 0;
     ld2450_config.zone_y2[index] = dist;
+    dist = 0;
   }
 
-  ld2450_config.timeout = LD2450_DEFAULT_TIMEOUT;
+  ld2450_config.tracktime = LD2450_TRACK_TIME;
+  ld2450_config.trackmode = LD2450_TRACK_IN;
+  ld2450_config.sensortimeout = LD2450_DEFAULT_TARGET_TIMEOUT;
 
   LD2450SaveConfig();
 }
 
 // sensor detection zone reset
-void CmndLD2450Reset() {
-  char str_answer[24];
+void CmdLD2450Reset() {
+  char str_answer[(7*4) +2 +1];
 
   LD2450ConfigReset();
-
+  LD2450InitTargets(true);
   // send result
-  sprintf(str_answer, "0,%d,%d,%d,%d", ld2450_config.zone_x1[0], ld2450_config.zone_x2[0], ld2450_config.zone_y1[0], ld2450_config.zone_y2[0]);
+  sprintf(str_answer, "1,%d,%d,%d,%d", ld2450_config.zone_x1[0], ld2450_config.zone_x2[0], ld2450_config.zone_y1[0], ld2450_config.zone_y2[0]);
   ResponseCmndChar(str_answer);
-}
-
-// sensor detection distance setup
-/*void CmndLD2450Dist() {
-  uint8_t count;
-  char *pstr_token;
-  char str_answer[24];
-
-  strlcpy(str_answer, XdrvMailbox.data, 24);
-  if (strlen(str_answer) > 0) {
-    // loop thru values
-    count = 0;
-    pstr_token = strtok(str_answer, ",");
-    while (pstr_token != nullptr) {
-      // if value is defined, set zone point accordingly
-      if (strlen(pstr_token) > 0) switch (count) {
-          case 0:
-            ld2450_config.zone_y1[0] = atoi(pstr_token);
-            break;
-          case 1:
-            ld2450_config.zone_y2[0] = atoi(pstr_token);
-            break;
-        }
-
-      // search for next token
-      pstr_token = strtok(nullptr, ",");
-      count++;
-    }
-
-    // force x values
-    ld2450_config.zone_x1[0] = -LD2450_DIST_MAX;
-    ld2450_config.zone_x2[0] = LD2450_DIST_MAX;
-
-    // save and validate zone
-    LD2450SaveConfig();
-    LD2450LoadConfig();
-  }
-
-  // send result
-  sprintf(str_answer, "%d,%d", ld2450_config.zone_y1[0], ld2450_config.zone_y2[0]);
-  ResponseCmndChar(str_answer);
-}*/
-
-void CmndLD2450Zone0() {
-  CmndLD2450Zone(0);
-}
-
-void CmndLD2450Zone1() {
-  CmndLD2450Zone(1);
-}
-
-void CmndLD2450Zone2() {
-  CmndLD2450Zone(2);
-}
-
-void CmndLD2450Zone3() {
-  CmndLD2450Zone(3);
-}
-
-void CmndLD2450Zone4() {
-  CmndLD2450Zone(4);
-}
-
-void CmndLD2450Zone5() {
-  CmndLD2450Zone(5);
 }
 
 // sensor detection zone setup
-void CmndLD2450Zone(uint8_t zone) {
-  uint8_t count;
+void CmdLD2450Zone() {
+  uint8_t zone = 0;
+  uint8_t count = 0;
   char *pstr_token;
-  char str_answer[24];
+  char str_answer[(7*4) +2 +1];
 
-  strlcpy(str_answer, XdrvMailbox.data, 24);
+  strlcpy(str_answer, XdrvMailbox.data, (7*4) +2 +1);
   if (strlen(str_answer) > 0) {
-    // loop thru values
-    count = 0;
     pstr_token = strtok(str_answer, ",");
-    while (pstr_token != nullptr) {
-      // if value is defined, set zone point accordingly
-      if (strlen(pstr_token) > 0) switch (count) {
+    while ((zone < LD2450_ZONE_MAX) && (pstr_token != nullptr)) {
+      if (strlen(pstr_token) > 0) {
+        switch (count) {
           case 0:
-            ld2450_config.zone_x1[zone] = atoi(pstr_token);
+            zone = atoi(pstr_token) -1;
             break;
           case 1:
-            ld2450_config.zone_x2[zone] = atoi(pstr_token);
+            ld2450_config.zone_x1[zone] = atoi(pstr_token);
             break;
           case 2:
-            ld2450_config.zone_y1[zone] = atoi(pstr_token);
+            ld2450_config.zone_x2[zone] = atoi(pstr_token);
             break;
           case 3:
+            ld2450_config.zone_y1[zone] = atoi(pstr_token);
+            break;
+          case 4:
             ld2450_config.zone_y2[zone] = atoi(pstr_token);
             break;
         }
-
-      // search for next token
+      }
       pstr_token = strtok(nullptr, ",");
       count++;
     }
-
-    // save and validate zone
-    LD2450SaveConfig();
-    LD2450LoadConfig();
+    if ((zone < LD2450_ZONE_MAX) && (count == 5)) {
+      // save and validate zone
+      LD2450SaveConfig();
+      LD2450InitTargets(true);
+    }
   }
 
   // send result
-  sprintf(str_answer, "%d,%d,%d,%d", ld2450_config.zone_x1[zone], ld2450_config.zone_x2[zone], ld2450_config.zone_y1[zone], ld2450_config.zone_y2[zone]);
+  LD2450LoadConfig();
+  if (((count != 5) && (count != 1)) || (zone >= LD2450_ZONE_MAX)) {
+    sprintf(str_answer, "wrong param");
+  } else {
+    sprintf(str_answer, "%d,%d,%d,%d,%d", zone+1, ld2450_config.zone_x1[zone], ld2450_config.zone_x2[zone], ld2450_config.zone_y1[zone], ld2450_config.zone_y2[zone]);
+  }
   ResponseCmndChar(str_answer);
 }
 
@@ -294,52 +277,80 @@ void CmndLD2450Zone(uint8_t zone) {
  *                  Config
 \**************************************************/
 
-// Load configuration from flash memory
-void LD2450LoadConfig() {
-  uint8_t zone;
-  uint8_t pos;
-  uint8_t row;
-  uint16_t checksum;
-  uint16_t checksum_flash = LD2450ConfigChecksum();
-  
-  checksum = Settings->rf_code[2][0];
-  checksum <= 8;
-  checksum |= Settings->rf_code[2][1];
+bool LD2450CheckConfig() {
+  bool res = true;
 
-  if (checksum != checksum_flash) {
-    LD2450ConfigReset();
+  if (ld2450_config.tracktime == 0) {
+    ld2450_config.tracktime = LD2450_TRACK_TIME;
+    res = false;
+  }
+  if (ld2450_config.trackmode > LD2450_TRACK_INOUT) {
+    ld2450_config.trackmode = LD2450_TRACK_IN;
+    res = false;
+  }
+  if (ld2450_config.sensortimeout == 0) {
+    ld2450_config.sensortimeout = LD2450_DEFAULT_TARGET_TIMEOUT;
+    res = false;
   }
 
-  // read parameters
-  ld2450_config.timeout = Settings->rf_code[2][2];
-  // check parameter
-  if (ld2450_config.timeout == 0) ld2450_config.timeout = LD2450_DEFAULT_TIMEOUT;
-
-  pos = 0;
-  row = 3;
-  for (zone = 0; zone < LD2450_ZONE_MAX; zone++) {
-    ld2450_config.zone_x1[zone] = ((int16_t)Settings->rf_code[row][pos++] - 128) * 100;
-    ld2450_config.zone_x2[zone] = ((int16_t)Settings->rf_code[row][pos++] - 128) * 100;
-    ld2450_config.zone_y1[zone] = ((int16_t)Settings->rf_code[row][pos++] - 128) * 100;
-    ld2450_config.zone_y2[zone] = ((int16_t)Settings->rf_code[row][pos++] - 128) * 100;
-    if (pos >= 8) {
-      pos = 0;
-      row++;
-    }
-    // check parameters
+  for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) {
     if (ld2450_config.zone_x1[zone] < -LD2450_DIST_MAX) ld2450_config.zone_x1[zone] = -LD2450_DIST_MAX;
     if (ld2450_config.zone_x2[zone] > LD2450_DIST_MAX) ld2450_config.zone_x2[zone] = LD2450_DIST_MAX;
     if (ld2450_config.zone_y1[zone] < 0) ld2450_config.zone_y1[zone] = 0;
     if (ld2450_config.zone_y2[zone] > LD2450_DIST_MAX) ld2450_config.zone_y2[zone] = LD2450_DIST_MAX;
-    if (ld2450_config.zone_x2[zone] <= ld2450_config.zone_x1[zone]) ld2450_config.zone_x2[zone] = LD2450_DIST_MAX;
-    if (ld2450_config.zone_y2[zone] <= ld2450_config.zone_y1[zone]) ld2450_config.zone_y2[zone] = LD2450_DIST_MAX;
+
+    if (ld2450_config.zone_x1[zone] > ld2450_config.zone_x2[zone]) {
+      uint16_t xy = ld2450_config.zone_x1[zone];
+      ld2450_config.zone_x1[zone] = ld2450_config.zone_x2[zone];
+      ld2450_config.zone_x2[zone] = xy;
+    }
+    if (ld2450_config.zone_y1[zone] > ld2450_config.zone_y2[zone]) {
+      uint16_t xy = ld2450_config.zone_y1[zone];
+      ld2450_config.zone_y1[zone] = ld2450_config.zone_y2[zone];
+      ld2450_config.zone_y2[zone] = xy;
+    }
   }
+
+  return res;
+}
+
+// Load configuration from flash memory
+void LD2450LoadConfig() {
+  uint8_t pos;
+  uint8_t row;
+  uint16_t checksum;
+    
+  checksum = Settings->rf_code[2][0];
+  checksum *= 0x100;
+  checksum |= Settings->rf_code[2][1];
+
+  if (checksum != LD2450ConfigChecksum()) LD2450ConfigReset();
+
+  // read parameters
+  ld2450_config.tracktime = Settings->rf_code[2][2];
+  ld2450_config.trackmode = Settings->rf_code[2][3];
+  ld2450_config.sensortimeout = Settings->rf_code[2][4];
+  
+  pos = 0;
+  row = 3;
+  for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) {
+    ld2450_config.zone_x1[zone] = ((int16_t)Settings->rf_code[row][pos++] - 128) * 100;
+    ld2450_config.zone_x2[zone] = ((int16_t)Settings->rf_code[row][pos++] - 128) * 100;
+    ld2450_config.zone_y1[zone] = ((int16_t)Settings->rf_code[row][pos++] - 128) * 100;
+    ld2450_config.zone_y2[zone] = ((int16_t)Settings->rf_code[row][pos++] - 128) * 100;
+    if (pos >= 7) {
+      pos = 0;
+      row++;
+    }
+  }
+
+  LD2450CheckConfig();
 }
 
 uint16_t LD2450ConfigChecksum() {
   uint16_t checksum = 0x4711;
   uint8_t *p1 = &(Settings->rf_code[2][2]);
-  uint8_t *p2 = &(Settings->rf_code[5][7]);
+  uint8_t *p2 = &(Settings->rf_code[(LD2450_ZONE_MAX/2) + 2][7]); 
 
   while (p1 <= p2) {
     checksum += *p1;
@@ -351,47 +362,33 @@ uint16_t LD2450ConfigChecksum() {
 
 // Save configuration into flash memory
 void LD2450SaveConfig() {
-  uint8_t zone;
   uint8_t pos;
   uint8_t row;
   uint16_t checksum;
 
-  Settings->rf_code[2][2] = ld2450_config.timeout;
+  LD2450CheckConfig();
+
+  Settings->rf_code[2][2] = ld2450_config.tracktime;
+  Settings->rf_code[2][3] = ld2450_config.trackmode;
+  Settings->rf_code[2][4] = ld2450_config.sensortimeout;
 
   pos = 0;
   row = 3;
-  for (zone = 0; zone < LD2450_ZONE_MAX; zone++) {
+  for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) {
     Settings->rf_code[row][pos++] = (uint8_t)((ld2450_config.zone_x1[zone] / 100) + 128);
     Settings->rf_code[row][pos++] = (uint8_t)((ld2450_config.zone_x2[zone] / 100) + 128);
     Settings->rf_code[row][pos++] = (uint8_t)((ld2450_config.zone_y1[zone] / 100) + 128);
     Settings->rf_code[row][pos++] = (uint8_t)((ld2450_config.zone_y2[zone] / 100) + 128);
-    if (pos >= 8) {
+    if (pos >= 7) {
       pos = 0;
       row++;
     }
   }
 
   checksum = LD2450ConfigChecksum();
-  Settings->rf_code[2][0] = (checksum >> 8);
+  Settings->rf_code[2][0] = (uint8_t)(checksum / 0x100);
   Settings->rf_code[2][1] = (uint8_t)checksum;
 }
-
-/**************************************************\
- *                  Functions
-\**************************************************/
-/*
-bool LD2450GetDetectionStatus(const uint32_t delay) {
-  uint32_t timeout = delay;
-
-  // if timestamp not defined, no detection
-  if (ld2450_status.timestamp == 0) return false;
-
-  // if no timeout given, use default one
-  if ((timeout == 0) || (timeout == UINT32_MAX)) timeout = ld2450_config.timeout;
-
-  // return timeout status
-  return (ld2450_status.timestamp + timeout > LocalTime());
-}*/
 
 // driver initialisation
 void Ld2450Detect(void) {
@@ -409,56 +406,36 @@ void Ld2450Detect(void) {
   }
 }
 
-void Ld2450EverySecond(void) {
+void Ld2450Publish(void) {
   if (ld2450_status.enabled) {
     // Send state change to be captured by rules
-    // {"Time":"2022-11-26T10:48:16","Switch1":"ON","LD2410":{"Distance":[125.0,0.0,0.0],"Energy":[0,100]}}
-    //   "HLK-LD2450":{"detect"=1,"target1":{"x"=25,"y":-14,"h":-35,"dist":46,"speed":23},"target2":{"x"=45,"y":34,"h":5,"dist":68,"speed":-12}}
-
     MqttPublishSensor();
   }
-}
-
-void LD2450LogMessage() {
-  uint8_t index;
-  char str_text[8];
-  String str_log;
-
-  // log type
-  str_log = "recv";
-
-  // loop to generate string
-  for (index = 0; index < ld2450_received.idx_body; index++) {
-    sprintf(str_text, " %02X", ld2450_received.arr_body[index]);
-    str_log += str_text;
-  }
-
-  // log message
-  AddLog(LOG_LEVEL_DEBUG_MORE, PSTR("HLK: %s"), str_log.c_str());
 }
 
 /*********************************************\
  *                   Callback
 \*********************************************/
 
-// driver initialisation
-void LD2450Init() {
-  uint8_t index;
-
+void LD2450InitTargets(bool markaschanged) {
   // loop to init targets
-  for (index = 0; index < LD2450_TARGET_MAX; index++) {
+  for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
     ld2450_target[index].x = 0;
     ld2450_target[index].y = 0;
     ld2450_target[index].speed = 0;
     ld2450_target[index].dist = 0;
-    ld2450_target[index].zone = false;
+    ld2450_target[index].in_zone = false;
+    for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) {
+      ld2450_zone[zone].target_in_zone[index] = false;
+      ld2450_zone[zone].target_in_zone_old[index] = markaschanged;
+    }
   }
+  ld2450_status.counter = 0;  
+}
 
-  // loop to init targets in zone
-  for (index = 0; index < LD2450_ZONE_MAX; index++) {
-    ld2450_status.in_zone[index] = false; // target within detection zone
-    ld2450_status.changed[index] = true; // zone left or entered
-  }
+// driver initialisation
+void LD2450Init() {
+  LD2450InitTargets(false);
 
   // load configuration
   LD2450LoadConfig();
@@ -469,15 +446,20 @@ void LD2450Init() {
   AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_help to get help on %s commands"), D_LD2450_NAME);
 }
 
+bool zoneEnabled(uint8_t zone) {
+  if ((ld2450_config.zone_x1[zone] == 0) &&
+      (ld2450_config.zone_x2[zone] == 0) &&
+      (ld2450_config.zone_y1[zone] == 0) &&
+      (ld2450_config.zone_y2[zone] == 0)) return false;
+  return true;
+}
+
 // Handling of received data
 void LD2450ReceiveData() {
   uint8_t recv_data;
-  uint32_t index, start;
   uint32_t *pheader;
   uint16_t *pfooter;
   int16_t *pint16;
-  bool in_zone, old_in_zone;
-  uint8_t zone;
 
   // check sensor presence
   if (ld2450_status.pserial == nullptr) return;
@@ -508,25 +490,16 @@ void LD2450ReceiveData() {
       if (*pheader == 0x0003ffaa) {
         memcpy(ld2450_received.arr_body, ld2450_received.arr_last, 4);
         ld2450_received.idx_body = 4;
-      }
-
-      // else if data message received
-      else if ((ld2450_received.idx_body == 30) && (*pfooter == 0xcc55)) {
-        // init target counter
-        ld2450_status.counter = 0;
-
-        // log received message
-        LD2450LogMessage();
-
-        // loop thru targets
-        for (index = 0; index < LD2450_TARGET_MAX; index++) {
+      } else if ((ld2450_received.idx_body == 30) && (*pfooter == 0xcc55)) { // data message received
+        for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
           // set target coordonnates
-          start = 4 + index * 8;
+          uint32_t start = 4 + index * 8;
 
-          // x (negative if left side, positive if right side)
+          // x 
           pint16 = (int16_t *)(ld2450_received.arr_body + start);
           ld2450_target[index].x = *pint16;
           if (ld2450_target[index].x < 0) ld2450_target[index].x = 0 - ld2450_target[index].x - 32768;
+          ld2450_target[index].x *= -1; // x coordinate like the Android app!
 
           // y
           pint16 = (int16_t *)(ld2450_received.arr_body + start + 2);
@@ -542,29 +515,42 @@ void LD2450ReceiveData() {
           // calculate distance
           ld2450_target[index].dist = (uint16_t)sqrt(pow(ld2450_target[index].x, 2) + pow(ld2450_target[index].y, 2));
 
-          // calculate if active
-          ld2450_target[index].zone = (ld2450_target[index].dist > 0);
-
-          // detect zone
-          for (zone = 0; zone < LD2450_ZONE_MAX; zone++) {
-            if ((ld2450_config.zone_x1[zone] == 0) &&
-                (ld2450_config.zone_x2[zone] == 0) &&
-                (ld2450_config.zone_y1[zone] == 0) &&
-                (ld2450_config.zone_y2[zone] == 0)) continue;
-
-            old_in_zone = ld2450_status.in_zone[zone];
-            ld2450_status.in_zone[zone] = (ld2450_target[index].dist > 0);
-            ld2450_status.in_zone[zone] &= ((ld2450_target[index].x >= ld2450_config.zone_x1[zone]) && (ld2450_target[index].x <= ld2450_config.zone_x2[zone]));
-            ld2450_status.in_zone[zone] &= ((ld2450_target[index].y >= ld2450_config.zone_y1[zone]) && (ld2450_target[index].y <= ld2450_config.zone_y2[zone]));
- //           if (ld2450_status.in_zone[zone] != old_in_zone) ld2450_status.changed[zone] = true; // zone left or entered
+          // calculate zone if active
+          if (ld2450_target[index].dist > 0) {
+            bool published;
+            ld2450_status.lastsensortime = LocalTime();
+            // detect zone
+            for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) {
+              if (!zoneEnabled(zone)) {
+                ld2450_zone[zone].target_in_zone[index] = false;
+                continue;
+              }
+              published = (ld2450_zone[zone].target_in_zone[index] == ld2450_zone[zone].target_in_zone_old[index]);
+              if (((ld2450_target[index].x >= ld2450_config.zone_x1[zone]) && (ld2450_target[index].x <= ld2450_config.zone_x2[zone])) &&
+                  ((ld2450_target[index].y >= ld2450_config.zone_y1[zone]) && (ld2450_target[index].y <= ld2450_config.zone_y2[zone]))) {
+                if (published) ld2450_zone[zone].target_in_zone[index] = true;                
+              } else {
+                if (published) ld2450_zone[zone].target_in_zone[index] = false;
+              }
+            }
+          } else {
+            for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) 
+              ld2450_zone[zone].target_in_zone[index] = false;
           }
-
-          // set detection status according to activity
-          if (ld2450_target[index].zone) ld2450_status.counter++;
         }
 
-        // if at least one target detected, update detection timestamp
-        if (ld2450_status.counter > 0) ld2450_status.timestamp = LocalTime();
+        // calculate target counter
+        ld2450_status.counter = 0;
+        for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
+          ld2450_target[index].in_zone = false;
+          for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) {
+            if (ld2450_zone[zone].target_in_zone[index]) {
+              ld2450_status.counter++;
+              ld2450_target[index].in_zone = true;
+              break;
+            } 
+          }
+        }
 
         // init reception
         ld2450_received.idx_body = 0;
@@ -576,35 +562,105 @@ void LD2450ReceiveData() {
   }
 }
 
+bool checkForZoneChanges() {
+  for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
+    for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) {
+      if (ld2450_zone[zone].target_in_zone[index] != ld2450_zone[zone].target_in_zone_old[index]) {
+        return true; // zone left or entered
+      }
+    }
+  }
+  return false; 
+}
+
+bool checkForTargetSensorTimeout() {
+  bool publish_target = false;
+  if (ld2450_status.lastsensortime + ld2450_config.sensortimeout < LocalTime()) {
+    ld2450_status.lastsensortime = LocalTime() + SECS_PER_DAY;
+    ld2450_status.counter = 0;
+    for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
+      ld2450_target[index].in_zone = false;
+      for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) {
+        ld2450_zone[zone].target_in_zone[index] = false; 
+        publish_target = true;
+      }
+    }
+  }
+  return publish_target;
+}
+
 // Show JSON status (for MQTT)
-//   "HLK-LD2450":{"detect"=1,"target1":{"x"=25,"y":-14,"y":35,"dist":46,"speed":23},
-//                            "target2":{"x"=45,"y":34,"y":5,"dist":68,"speed":-12}}
+// 00:00:38.384 MQT: tele/tasmota_BFBB00/SENSOR = {"Time":"2000-01-01T00:00:38","ld2450":{"detect":1,"target1":{"x":-377,"y":466,"dist":599,"speed":0},"zone1":[1,0,0]}}
+// 00:00:41.005 MQT: tele/tasmota_BFBB00/SENSOR = {"Time":"2000-01-01T00:00:41","ld2450":{"detect":1,"target1":{"x":-490,"y":479,"dist":685,"speed":0}}}
 void LD2450ShowJSON(bool append) {
-  uint8_t index;
-  uint8_t zone;
-  bool show = false;
+  bool publish_zone;
+  bool publish_target;
 
   // check sensor presence
   if (ld2450_status.pserial == nullptr) return;
 
-  for (zone = 0; zone < LD2450_ZONE_MAX; zone++) {
-    //ld2450_status.target[zone] = 0xFF; // target n within detection zone
-    if (ld2450_status.changed[zone])
-      show = true; // zone left or entered
-    ld2450_status.changed[zone] = false;
+  publish_target = checkForTargetSensorTimeout();
+
+  // if at least one target detected, publish targets
+  if (ld2450_config.trackmode != LD2450_TRACK_OFF) { // publish targets enabled
+    if (ld2450_status.pubtimestamp + ld2450_config.tracktime < LocalTime()) {
+      switch (ld2450_config.trackmode) {
+      case LD2450_TRACK_IN:
+        if (ld2450_status.counter > 0) publish_target = true;
+        break;
+      case LD2450_TRACK_OUT:
+      case LD2450_TRACK_INOUT:
+        publish_target = true;
+        break;
+      }
+    }
   }
-  if (show == false) return;
+
+  publish_zone = checkForZoneChanges();
+
+  if (!publish_zone && !publish_target) return;
 
   if (append) {
+    ld2450_status.pubtimestamp = LocalTime();
     // start of ld2450 section
     ResponseAppend_P(PSTR(",\"ld2450\":{\"detect\":%u"), ld2450_status.counter);
 
-    // loop thru targets
-    for (index = 0; index < LD2450_TARGET_MAX; index++)
-      if (ld2450_target[index].dist > 0) 
+    for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
+      publish_target = false;
+      switch (ld2450_config.trackmode) {
+      case LD2450_TRACK_IN:
+        if (ld2450_target[index].in_zone) publish_target = true;
+        break;
+      case LD2450_TRACK_OUT:
+      case LD2450_TRACK_INOUT:
+        publish_target = true;
+        break;
+      }
+      if (publish_target) {
         ResponseAppend_P(PSTR(",\"target%u\":{\"x\":%d,\"y\":%d,\"dist\":%u,\"speed\":%d}"), 
-          index, ld2450_target[index].x, ld2450_target[index].y, ld2450_target[index].dist, ld2450_target[index].speed);
-
+          index + 1, ld2450_target[index].x, ld2450_target[index].y, ld2450_target[index].dist, ld2450_target[index].speed);
+      }
+    }
+    if (publish_zone) {
+      for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) {
+        bool zone_changed = false;
+        for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
+          if (ld2450_zone[zone].target_in_zone[index] != ld2450_zone[zone].target_in_zone_old[index]) { // zone left or entered
+            ld2450_zone[zone].target_in_zone_old[index] = ld2450_zone[zone].target_in_zone[index];
+            zone_changed = true;
+          }
+        }
+        if (zone_changed) {
+          ResponseAppend_P(PSTR(",\"zone%u\":["), zone +1);
+          for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
+            if (index > 0) ResponseAppend_P(PSTR(","));
+            ResponseAppend_P(PSTR("%u"),
+              (ld2450_zone[zone].target_in_zone[index] ? 1:0));
+          }
+          ResponseAppend_P(PSTR("]"));
+        }
+      }    
+    }
     // end of ld2450 section
     ResponseAppend_P(PSTR("}"));
   }
@@ -678,7 +734,7 @@ void LD2450WebSensor() {
       if (arr_pos[index] > position) WSContentSend_P(PSTR("<div style='width:%u%%;padding:0px;background:none;'>&nbsp;</div>\n"), arr_pos[index] - position);
 
       // check if target is in detection zone
-      if (ld2450_target[index].zone)
+      if (ld2450_target[index].in_zone)
         strcpy(str_color, LD2450_COLOR_PRESENT);
       else
         strcpy(str_color, LD2450_COLOR_OUTRANGE);
@@ -705,19 +761,22 @@ void LD2450GraphRadarUpdate() {
   WSContentBegin(200, CT_PLAIN);
 
   // radar zone
-  zone = 0;
-  x1 = (int32_t)ld2450_config.zone_x1[zone] * 400 / LD2450_DIST_MAX + 400;
-  x2 = (int32_t)ld2450_config.zone_x2[zone] * 400 / LD2450_DIST_MAX + 400;
-  y1 = (int32_t)ld2450_config.zone_y1[zone] * 400 / LD2450_DIST_MAX + 50;
-  y2 = (int32_t)ld2450_config.zone_y2[zone] * 400 / LD2450_DIST_MAX + 50;
-  WSContentSend_P(PSTR("M %d %d L %d %d L %d %d L %d %d Z\n"), x1, y1, x2, y1, x2, y2, x1, y2);
+  for (zone = 0; zone < LD2450_ZONE_MAX; zone++) {
+    if (!zoneEnabled(zone)) continue;
+    x1 = (int32_t)ld2450_config.zone_x1[zone] * 400 / LD2450_DIST_MAX + 400;
+    x2 = (int32_t)ld2450_config.zone_x2[zone] * 400 / LD2450_DIST_MAX + 400;
+    y1 = (int32_t)ld2450_config.zone_y1[zone] * 400 / LD2450_DIST_MAX + 50;
+    y2 = (int32_t)ld2450_config.zone_y2[zone] * 400 / LD2450_DIST_MAX + 50;
+    WSContentSend_P(PSTR("M %d %d L %d %d L %d %d L %d %d Z "), x1, y1, x2, y1, x2, y2, x1, y2);
+  }
+  WSContentSend_P(PSTR("\n"));
 
   // loop thru targets
   for (index = 0; index < LD2450_TARGET_MAX; index++) {
     // calculate target type
     if (ld2450_target[index].dist == 0)
       strcpy(str_class, "abs");
-    else if (ld2450_target[index].zone)
+    else if (ld2450_target[index].in_zone)
       strcpy(str_class, "act");
     else
       strcpy(str_class, "ina");
@@ -825,10 +884,11 @@ void LD2450GraphRadar() {
   WSContentSend_P(PSTR("<style type='text/css'>\n"));
   WSContentSend_P(PSTR("text {font-size:16px;fill:#aaa;text-anchor:middle;}\n"));
   WSContentSend_P(PSTR("text.abs {fill:%s;}\n"), LD2450_COLOR_ABSENT);
+  WSContentSend_P(PSTR("text.zone {fill:%s;}\n"), LD2450_COLOR_ZONE);
   WSContentSend_P(PSTR("path {stroke:green;stroke-dasharray:2 2;fill:none;}\n"));
   WSContentSend_P(PSTR("path.zone {stroke-dasharray:2 4;fill:#1c1c1c;}\n"));
   WSContentSend_P(PSTR("circle {opacity:0.75;}\n"));
-  WSContentSend_P(PSTR("circle.ina {fill:#555;}\n"), LD2450_COLOR_OUTRANGE);
+  WSContentSend_P(PSTR("circle.ina {fill:%s;}\n"), LD2450_COLOR_OUTRANGE);
   WSContentSend_P(PSTR("circle.act {fill:%s;}\n"), LD2450_COLOR_PRESENT);
   WSContentSend_P(PSTR("circle.abs {fill:%s;}\n"), LD2450_COLOR_ABSENT);
   WSContentSend_P(PSTR("</style>\n"));
@@ -848,6 +908,14 @@ void LD2450GraphRadar() {
     WSContentSend_P(PSTR("<text x=%d y=%d>%dm</text>\n"), 400 + x, 40 + y, index);
     WSContentSend_P(PSTR("<text x=%d y=%d>%dm</text>\n"), 400 - 5 - x, 40 + y, index);
     WSContentSend_P(PSTR("<path d='M %d %d A %d %d 0 0 1 %d %d' />\n"), 400 + x, 50 + y, r, r, 400 - x, 50 + y);
+  }
+
+  // display zone num
+  for (index = 0; index < LD2450_ZONE_MAX; index++) {
+    if (!zoneEnabled(index)) continue;
+    x = (int32_t)ld2450_config.zone_x1[index] * 400 / LD2450_DIST_MAX;
+    y = (int32_t)ld2450_config.zone_y1[index] * 400 / LD2450_DIST_MAX;
+    WSContentSend_P(PSTR("<text class='zone' x=%d y=%d>Z%d</text>\n"), x + 412, y + 64, index + 1);
   }
 
   // display targets
@@ -884,8 +952,8 @@ bool Xsns114(uint32_t function) {
     case FUNC_COMMAND:
       result = DecodeCommand(kHLKLD2450Commands, HLKLD2450Command);
       break;
-    case FUNC_EVERY_SECOND:
-      Ld2450EverySecond();
+    case FUNC_EVERY_100_MSECOND:
+      if (TasmotaGlobal.uptime > 4) Ld2450Publish();
       break;
     case FUNC_JSON_APPEND:
       if (ld2450_status.enabled) LD2450ShowJSON(true);

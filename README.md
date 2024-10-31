@@ -10,6 +10,7 @@ Configuration: see xsns_114_ld2450.ino and cmd ld2450_help on the console!
 ![LD2450](/info/LD2450_B.png)
 ![LD2450](/info/LD2450_C.png)
 ![LD2450](/info/LD2450_D.png)
+![LD2450](/info/LD2450_E.png)
 ![LD2450 config](/info/LD2450_config.png)
 
 

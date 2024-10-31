@@ -404,7 +404,7 @@ void Ld2410Detect(void) {
   if (PinUsed(GPIO_LD2410_RX) && PinUsed(GPIO_LD2410_TX)) {
     LD2410.buffer = (uint8_t*)malloc(LD2410_BUFFER_SIZE);    // Default 64
     if (!LD2410.buffer) { return; }
-    LD2410Serial = new TasmotaSerial(Pin(GPIO_LD2410_RX), Pin(), 2);
+    LD2410Serial = new TasmotaSerial(Pin(GPIO_LD2410_RX), Pin(GPIO_LD2410_TX), 2);
     if (LD2410Serial->begin(256000)) {
       if (LD2410Serial->hardwareSerial()) { ClaimSerial(); }
 
