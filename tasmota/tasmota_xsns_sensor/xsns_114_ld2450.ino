@@ -331,12 +331,6 @@ void CmdLD2450Target() {
         sprintf(str_answer, "multi target set");
       }
       LD2450SendCommand(endConfigCommands, sizeof(endConfigCommands));  
-/*
-      // reboot LD2450 to take effect
-      LD2450SendCommand(enableConfigCommands, sizeof(enableConfigCommands));
-      LD2450SendCommand(rebootModule, sizeof(rebootModule));
-      LD2450SendCommand(endConfigCommands, sizeof(endConfigCommands));
-*/
     }
   }
 
