@@ -159,7 +159,7 @@ void CmdLD2450Help() {
   AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_reset                  = reset detection zone"));
   AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_track <t>,<m>          = track targets via MQTT in/out of the zones"));
   AddLog(LOG_LEVEL_INFO, PSTR("     t     : publish time [sec]"));
-  AddLog(LOG_LEVEL_INFO, PSTR("     m     : mode, 0=off, 1=targets in zones, 2=targets out zones, 2=targets in & out zones"));
+  AddLog(LOG_LEVEL_INFO, PSTR("     m     : mode, 0=off, 1=targets in zones, 2=targets out zones, 3=targets in & out zones"));
   AddLog(LOG_LEVEL_INFO, PSTR("     default is track %u,%u"), LD2450_TRACK_TIME, LD2450_TRACK_IN);
   AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_timeout <t>            = timeout [sec] to trigger inactivity"));
   AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_zone <z>               = get detection zone [mm]"));
@@ -171,6 +171,8 @@ void CmdLD2450Help() {
   AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_zone <z>,0,0,0,0 : disable zone detection"));
   AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_bluetooth <b>          = disable/enable bluetooth"));
   AddLog(LOG_LEVEL_INFO, PSTR("     b     : 0=bluetooth disable, 1=bluetooth enable"));
+  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_target <sm>            = set single/multi target"));
+  AddLog(LOG_LEVEL_INFO, PSTR("     sm    : s=single target set, m=multi target set"));
   ResponseCmndDone();
 }
 
