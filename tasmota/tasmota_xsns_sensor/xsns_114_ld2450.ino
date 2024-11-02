@@ -89,9 +89,18 @@
 // strings
 const char D_LD2450_NAME[] PROGMEM = "HLK-LD2450";
 
+// LD2450 serial commands
+const uint8_t enableConfigCommands[] = {0xFF, 0x00, 0x01, 0x00};
+const uint8_t endConfigCommands[] = {0xFE, 0x00};
+const uint8_t rebootModule[] = {0xA3, 0x00};
+const uint8_t enableBluetooth[] = {0xA4, 0x00, 0x01, 0x00};
+const uint8_t disableBluetooth[] = {0xA4, 0x00, 0x00, 0x00};
+const uint8_t singleTargetTracking[] = {0x80, 0x00};
+const uint8_t multiTargetTracking[] = {0x90, 0x00};
+
 // MQTT commands
-const char kHLKLD2450Commands[] PROGMEM = "ld2450_|help|timeout|track|reset|zone";
-void (*const HLKLD2450Command[])(void) PROGMEM = {&CmdLD2450Help, &CmdLD2450SensorTimeout, &CmdLD2450Track, &CmdLD2450Reset, &CmdLD2450Zone};
+const char kHLKLD2450Commands[] PROGMEM = "ld2450_|help|timeout|track|reset|zone|bluetooth|target";
+void (*const HLKLD2450Command[])(void) PROGMEM = {&CmdLD2450Help, &CmdLD2450SensorTimeout, &CmdLD2450Track, &CmdLD2450Reset, &CmdLD2450Zone, &CmdLD2450Bluetooth, &CmdLD2450Target};
 
 /****************************************\
  *                 Data
@@ -160,6 +169,8 @@ void CmdLD2450Help() {
   AddLog(LOG_LEVEL_INFO, PSTR("     y1,y2 : from %d (sensor) to +%d (%dm)"), 0, LD2450_DIST_MAX, LD2450_DIST_MAX / 1000);
   AddLog(LOG_LEVEL_INFO, PSTR("     default is zone 1,%d,%d,%d,%d"), -LD2450_DIST_MAX, LD2450_DIST_MAX, 0, LD2450_DIST_MAX);
   AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_zone <z>,0,0,0,0 : disable zone detection"));
+  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_bluetooth <b>          = disable/enable bluetooth"));
+  AddLog(LOG_LEVEL_INFO, PSTR("     b     : 0=bluetooth disable, 1=bluetooth enable"));
   ResponseCmndDone();
 }
 
@@ -270,6 +281,59 @@ void CmdLD2450Zone() {
   } else {
     sprintf(str_answer, "%d,%d,%d,%d,%d", zone+1, ld2450_config.zone_x1[zone], ld2450_config.zone_x2[zone], ld2450_config.zone_y1[zone], ld2450_config.zone_y2[zone]);
   }
+  ResponseCmndChar(str_answer);
+}
+
+// LD2450 bluetooth enable/disable
+void CmdLD2450Bluetooth() {
+  char str_answer[19];
+
+  sprintf(str_answer, "invalid parameter");
+
+  if (XdrvMailbox.data_len == 1) {
+    if (XdrvMailbox.data[0] == '0' || XdrvMailbox.data[0] == '1') {      
+      // send command
+      LD2450SendCommand(enableConfigCommands, sizeof(enableConfigCommands));
+      if (XdrvMailbox.data[0] == '1') {
+        LD2450SendCommand(enableBluetooth, sizeof(enableBluetooth));
+        sprintf(str_answer, "bluetooth enabled");
+      } else {
+        LD2450SendCommand(disableBluetooth, sizeof(disableBluetooth));
+        sprintf(str_answer, "bluetooth disabled");
+      }
+      LD2450SendCommand(endConfigCommands, sizeof(endConfigCommands));  
+
+      // reboot LD2450 to take effect
+      LD2450SendCommand(enableConfigCommands, sizeof(enableConfigCommands));
+      LD2450SendCommand(rebootModule, sizeof(rebootModule));
+      LD2450SendCommand(endConfigCommands, sizeof(endConfigCommands));
+    }
+  }
+
+  ResponseCmndChar(str_answer);
+}
+
+// LD2450 single/multi target
+void CmdLD2450Target() {
+  char str_answer[18];
+
+  sprintf(str_answer, "invalid parameter");
+
+  if (XdrvMailbox.data_len == 1) {
+    if (XdrvMailbox.data[0] == 's' || XdrvMailbox.data[0] == 'm') {      
+      // send command
+      LD2450SendCommand(enableConfigCommands, sizeof(enableConfigCommands));
+      if (XdrvMailbox.data[0] == 's') {
+        LD2450SendCommand(singleTargetTracking, sizeof(singleTargetTracking));
+        sprintf(str_answer, "single target set");
+      } else {
+        LD2450SendCommand(multiTargetTracking, sizeof(multiTargetTracking));
+        sprintf(str_answer, "multi target set");
+      }
+      LD2450SendCommand(endConfigCommands, sizeof(endConfigCommands));  
+    }
+  }
+
   ResponseCmndChar(str_answer);
 }
 
@@ -663,6 +727,36 @@ void LD2450ShowJSON(bool append) {
     }
     // end of ld2450 section
     ResponseAppend_P(PSTR("}"));
+  }
+}
+
+void LD2450SendCommand(const uint8_t *data, uint16_t data_len) {
+  uint8_t buffer[4 + 2 + data_len + 4];
+  uint32_t idx = 0;
+
+  // header
+  buffer[idx++] = 0xFD;
+  buffer[idx++] = 0xFC;
+  buffer[idx++] = 0xFB;
+  buffer[idx++] = 0xFA;
+
+  // in-frame data length
+  buffer[idx++] = data_len;
+  buffer[idx++] = data_len >> 8;
+
+  // in-frame data
+  for (uint16_t i = 0; i < data_len; i++) {
+    buffer[idx++] = data[i];
+  }
+
+  // end of frame
+  buffer[idx++] = 0x04;
+  buffer[idx++] = 0x03;
+  buffer[idx++] = 0x02;
+  buffer[idx++] = 0x01;
+
+  for (uint32_t i = 0; i < idx; i++) {
+    ld2450_status.pserial->write(buffer[i]);
   }
 }
 
