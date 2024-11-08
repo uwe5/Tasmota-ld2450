@@ -90,6 +90,8 @@
 const char D_LD2450_NAME[] PROGMEM = "HLK-LD2450";
 
 // LD2450 serial commands
+const uint32_t CMD_FRAME = 0xfafbfcfd;
+const uint32_t RADAR_FRAME = 0x0003ffaa;
 const uint8_t enableConfigCommands[] = {0xFF, 0x00, 0x01, 0x00};
 const uint8_t endConfigCommands[] = {0xFE, 0x00};
 const uint8_t rebootModule[] = {0xA3, 0x00};
@@ -97,10 +99,12 @@ const uint8_t enableBluetooth[] = {0xA4, 0x00, 0x01, 0x00};
 const uint8_t disableBluetooth[] = {0xA4, 0x00, 0x00, 0x00};
 const uint8_t singleTargetTracking[] = {0x80, 0x00};
 const uint8_t multiTargetTracking[] = {0x90, 0x00};
+const uint8_t readFirmwareVersion[] = {0xA0, 0x00};
+const uint8_t readBluetoothMac[] = {0xA5, 0x00, 0x01, 0x00};
 
 // MQTT commands
-const char kHLKLD2450Commands[] PROGMEM = "ld2450_|help|timeout|track|reset|zone|bluetooth|target";
-void (*const HLKLD2450Command[])(void) PROGMEM = {&CmdLD2450Help, &CmdLD2450SensorTimeout, &CmdLD2450Track, &CmdLD2450Reset, &CmdLD2450Zone, &CmdLD2450Bluetooth, &CmdLD2450Target};
+const char kHLKLD2450Commands[] PROGMEM = "ld2450_|help|timeout|track|reset|zone|bluetooth|target|version|mac";
+void (*const HLKLD2450Command[])(void) PROGMEM = {&CmdLD2450Help, &CmdLD2450SensorTimeout, &CmdLD2450Track, &CmdLD2450Reset, &CmdLD2450Zone, &CmdLD2450Bluetooth, &CmdLD2450Target, &CmdLD2450Version, &CmdLD2450Mac};
 
 /****************************************\
  *                 Data
@@ -127,11 +131,16 @@ struct {
 
 // LD2450 status
 static struct {
-  TasmotaSerial *pserial = nullptr;  // pointer to serial port
-  bool enabled = false;              // driver is enabled
-  uint8_t counter = 0;               // detected targets counter
-  uint32_t pubtimestamp = 0;         // timestamp of last publication time
-  uint32_t lastsensortime = 0;       // timestamp of last detection time
+  TasmotaSerial *pserial = nullptr;   // pointer to serial port
+  bool enabled = false;               // driver is enabled
+  uint8_t counter = 0;                // detected targets counter
+  uint32_t pubtimestamp = 0;          // timestamp of last publication time
+  uint32_t lastsensortime = 0;        // timestamp of last detection time
+  uint8_t version[6];                 // LD2450 firmware version
+  bool pubVersion;                    // publish firmware version
+  uint8_t mac[6];                     // LD2450 MAC
+  bool pubMac;                        // publish LD2450 MAC
+  uint8_t getConfig = 0;
 } ld2450_status;
 
 // zone status
@@ -168,11 +177,13 @@ void CmdLD2450Help() {
   AddLog(LOG_LEVEL_INFO, PSTR("     x1,x2 : from -%d (%dm left) to +%d (%dm right)"), LD2450_DIST_MAX, LD2450_DIST_MAX / 1000, LD2450_DIST_MAX, LD2450_DIST_MAX / 1000);
   AddLog(LOG_LEVEL_INFO, PSTR("     y1,y2 : from %d (sensor) to +%d (%dm)"), 0, LD2450_DIST_MAX, LD2450_DIST_MAX / 1000);
   AddLog(LOG_LEVEL_INFO, PSTR("     default is zone 1,%d,%d,%d,%d"), -LD2450_DIST_MAX, LD2450_DIST_MAX, 0, LD2450_DIST_MAX);
-  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_zone <z>,0,0,0,0 : disable zone detection"));
+  AddLog(LOG_LEVEL_INFO, PSTR("     ld2450_zone <z>,0,0,0,0 : disable zone detection"));
   AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_bluetooth <b>          = disable/enable bluetooth"));
   AddLog(LOG_LEVEL_INFO, PSTR("     b     : 0=bluetooth disable, 1=bluetooth enable"));
   AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_target <sm>            = set single/multi target"));
   AddLog(LOG_LEVEL_INFO, PSTR("     sm    : s=single target set, m=multi target set"));
+  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_version                = get LD2450 firmware version"));
+  AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_mac                    = get LD2450 mac address (valid value only if bluetooth is activated)"));
   ResponseCmndDone();
 }
 
@@ -288,20 +299,16 @@ void CmdLD2450Zone() {
 
 // LD2450 bluetooth enable/disable
 void CmdLD2450Bluetooth() {
-  char str_answer[19];
-
-  sprintf(str_answer, "invalid parameter");
-
   if (XdrvMailbox.data_len == 1) {
     if (XdrvMailbox.data[0] == '0' || XdrvMailbox.data[0] == '1') {      
       // send command
       LD2450SendCommand(enableConfigCommands, sizeof(enableConfigCommands));
       if (XdrvMailbox.data[0] == '1') {
         LD2450SendCommand(enableBluetooth, sizeof(enableBluetooth));
-        sprintf(str_answer, "bluetooth enabled");
+        ResponseCmndNumber(1);
       } else {
         LD2450SendCommand(disableBluetooth, sizeof(disableBluetooth));
-        sprintf(str_answer, "bluetooth disabled");
+        ResponseCmndNumber(0);
       }
       LD2450SendCommand(endConfigCommands, sizeof(endConfigCommands));  
 
@@ -309,33 +316,48 @@ void CmdLD2450Bluetooth() {
       LD2450SendCommand(enableConfigCommands, sizeof(enableConfigCommands));
       LD2450SendCommand(rebootModule, sizeof(rebootModule));
       LD2450SendCommand(endConfigCommands, sizeof(endConfigCommands));
+      ld2450_status.getConfig = 0; // trigger read version & bluetooth mac
+      return;
     }
   }
 
-  ResponseCmndChar(str_answer);
+  ResponseCmndChar("invalid parameter");
 }
 
 // LD2450 single/multi target
 void CmdLD2450Target() {
-  char str_answer[18];
-
-  sprintf(str_answer, "invalid parameter");
-
   if (XdrvMailbox.data_len == 1) {
     if (XdrvMailbox.data[0] == 's' || XdrvMailbox.data[0] == 'm') {      
       // send command
       LD2450SendCommand(enableConfigCommands, sizeof(enableConfigCommands));
       if (XdrvMailbox.data[0] == 's') {
         LD2450SendCommand(singleTargetTracking, sizeof(singleTargetTracking));
-        sprintf(str_answer, "single target set");
+        ResponseCmndChar("single target set");
       } else {
         LD2450SendCommand(multiTargetTracking, sizeof(multiTargetTracking));
-        sprintf(str_answer, "multi target set");
+        ResponseCmndChar("multi target set");
       }
       LD2450SendCommand(endConfigCommands, sizeof(endConfigCommands));  
+      return;
     }
   }
 
+  ResponseCmndChar("invalid parameter");
+}
+
+// LD2450 version
+void CmdLD2450Version() {
+  char str_answer[16];
+  sprintf(str_answer, "V%x.%02x.%02x%02x%02x%02x", ld2450_status.version[1], ld2450_status.version[0], 
+    ld2450_status.version[5], ld2450_status.version[4], ld2450_status.version[3], ld2450_status.version[2]);
+  ResponseCmndChar(str_answer);
+}
+
+// LD2450 mac
+void CmdLD2450Mac() {
+  char str_answer[(6*3)+1];
+  sprintf(str_answer, "%02X:%02X:%02X:%02X:%02X:%02X", ld2450_status.mac[0], ld2450_status.version[1], 
+    ld2450_status.version[2], ld2450_status.version[3], ld2450_status.version[4], ld2450_status.version[5]);
   ResponseCmndChar(str_answer);
 }
 
@@ -458,6 +480,10 @@ void LD2450SaveConfig() {
 
 // driver initialisation
 void Ld2450Detect(void) {
+  ld2450_status.pubVersion = false; 
+  memset(ld2450_status.version, 0, sizeof(ld2450_status.version));
+  ld2450_status.pubMac = false; 
+  memset(ld2450_status.mac, 0, sizeof(ld2450_status.mac));
   if (ld2450_status.pserial != nullptr) {
     return;
   }
@@ -472,7 +498,7 @@ void Ld2450Detect(void) {
   }
 }
 
-void Ld2450Publish(void) {
+void LD2450Publish(void) {
   if (ld2450_status.enabled) {
     // Send state change to be captured by rules
     MqttPublishSensor();
@@ -496,7 +522,8 @@ void LD2450InitTargets(bool markaschanged) {
       ld2450_zone[zone].target_in_zone_old[index] = markaschanged;
     }
   }
-  ld2450_status.counter = 0;  
+  ld2450_status.counter = 0;
+  ld2450_status.getConfig = 0;
 }
 
 // driver initialisation
@@ -512,7 +539,7 @@ void LD2450Init() {
   AddLog(LOG_LEVEL_INFO, PSTR("HLP: ld2450_help to get help on %s commands"), D_LD2450_NAME);
 }
 
-bool zoneEnabled(uint8_t zone) {
+bool LD2450ZoneEnabled(uint8_t zone) {
   if ((ld2450_config.zone_x1[zone] == 0) &&
       (ld2450_config.zone_x2[zone] == 0) &&
       (ld2450_config.zone_y1[zone] == 0) &&
@@ -520,20 +547,29 @@ bool zoneEnabled(uint8_t zone) {
   return true;
 }
 
+void LD2450GetVersion() {
+  ld2450_status.pubVersion = false;
+  LD2450SendCommand(enableConfigCommands, sizeof(enableConfigCommands));
+  LD2450SendCommand(readFirmwareVersion, sizeof(readFirmwareVersion));
+  LD2450SendCommand(endConfigCommands, sizeof(endConfigCommands));  
+}
+
+void LD2450GetMac() {
+  ld2450_status.pubMac = false;
+  LD2450SendCommand(enableConfigCommands, sizeof(enableConfigCommands));
+  LD2450SendCommand(readBluetoothMac, sizeof(readBluetoothMac));
+  LD2450SendCommand(endConfigCommands, sizeof(endConfigCommands));  
+}
+
 // Handling of received data
 void LD2450ReceiveData() {
-  uint8_t recv_data;
-  uint32_t *pheader;
-  uint16_t *pfooter;
-  int16_t *pint16;
-
   // check sensor presence
   if (ld2450_status.pserial == nullptr) return;
 
   // run serial receive loop
   while (ld2450_status.pserial->available()) {
     // receive character
-    recv_data = (uint8_t)ld2450_status.pserial->read();
+    uint8_t recv_data = (uint8_t)ld2450_status.pserial->read();
 
     if (TasmotaGlobal.uptime > LD2450_START_DELAY) {
       // append character to received message body
@@ -545,24 +581,39 @@ void LD2450ReceiveData() {
       ld2450_received.arr_last[2] = ld2450_received.arr_last[3];
       ld2450_received.arr_last[3] = recv_data;
 
-      // update reception timestamp
-      ld2450_received.timestamp = millis();
-
       // get header and footer
-      pheader = (uint32_t *)&ld2450_received.arr_last;
-      pfooter = (uint16_t *)(ld2450_received.arr_last + 2);
+      uint32_t *pHeader = (uint32_t *)&ld2450_received.arr_body;
+      uint32_t *pSeq = (uint32_t *)&ld2450_received.arr_last;
+      uint16_t *pRadarFooter = (uint16_t *)(ld2450_received.arr_last + 2);
 
       // look for header and footer
-      if (*pheader == 0x0003ffaa) {
-        memcpy(ld2450_received.arr_body, ld2450_received.arr_last, 4);
+      if ((*pSeq == CMD_FRAME) || (*pSeq == RADAR_FRAME)) { // protocol frame received
+        *pHeader = *pSeq;
         ld2450_received.idx_body = 4;
-      } else if ((ld2450_received.idx_body == 30) && (*pfooter == 0xcc55)) { // data message received
+      } else if ((*pHeader == CMD_FRAME) && (*pSeq == 0x01020304)) {
+        //char buf[(ld2450_received.idx_body * 2) + 1];
+        //AddLog(LOG_LEVEL_INFO, PSTR("dump: CMD_FRAME : %s"), ToHex_P((unsigned char*)ld2450_received.arr_body, ld2450_received.idx_body, buf, sizeof(buf)));
+        if (ld2450_received.arr_body[6] == readFirmwareVersion[0]) { // version data message received
+          memcpy(ld2450_status.version, &ld2450_received.arr_body[12], sizeof(ld2450_status.version));
+          ld2450_status.pubVersion = true;
+        } else if (ld2450_received.arr_body[6] == readBluetoothMac[0]) { // mac address data message received
+          memcpy(ld2450_status.mac, &ld2450_received.arr_body[10], sizeof(ld2450_status.mac));
+          if ((ld2450_status.mac[0] == 8) && (ld2450_status.mac[1] == 5) && (ld2450_status.mac[2] == 4) && 
+              (ld2450_status.mac[3] == 3) && (ld2450_status.mac[4] == 2) && (ld2450_status.mac[5] == 1)) // bluetooth is off
+            memset(ld2450_status.mac, 0, sizeof(ld2450_status.mac));
+          ld2450_status.pubMac = true;
+        }
+        ld2450_received.idx_body = 0;
+      } else if ((*pHeader == RADAR_FRAME) && (ld2450_received.idx_body == 30) && (*pRadarFooter == 0xcc55)) { // radar data message received
+        // update radar reception timestamp
+        ld2450_received.timestamp = millis();
+
         for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
           // set target coordonnates
           uint32_t start = 4 + index * 8;
 
           // x 
-          pint16 = (int16_t *)(ld2450_received.arr_body + start);
+          int16_t *pint16 = (int16_t *)(ld2450_received.arr_body + start);
           ld2450_target[index].x = *pint16;
           if (ld2450_target[index].x < 0) ld2450_target[index].x = 0 - ld2450_target[index].x - 32768;
           ld2450_target[index].x *= -1; // x coordinate like the Android app!
@@ -587,7 +638,7 @@ void LD2450ReceiveData() {
             ld2450_status.lastsensortime = LocalTime();
             // detect zone
             for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) {
-              if (!zoneEnabled(zone)) {
+              if (!LD2450ZoneEnabled(zone)) {
                 ld2450_zone[zone].target_in_zone[index] = false;
                 continue;
               }
@@ -628,7 +679,7 @@ void LD2450ReceiveData() {
   }
 }
 
-bool checkForZoneChanges() {
+bool LD2450CheckForZoneChanges() {
   for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
     for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) {
       if (ld2450_zone[zone].target_in_zone[index] != ld2450_zone[zone].target_in_zone_old[index]) {
@@ -639,7 +690,7 @@ bool checkForZoneChanges() {
   return false; 
 }
 
-bool checkForTargetSensorTimeout() {
+bool LD2450CheckForTargetSensorTimeout() {
   bool publish_target = false;
   if (ld2450_status.lastsensortime + ld2450_config.sensortimeout < LocalTime()) {
     ld2450_status.lastsensortime = LocalTime() + SECS_PER_DAY;
@@ -659,13 +710,10 @@ bool checkForTargetSensorTimeout() {
 // 00:00:38.384 MQT: tele/tasmota_BFBB00/SENSOR = {"Time":"2000-01-01T00:00:38","ld2450":{"detect":1,"target1":{"x":-377,"y":466,"dist":599,"speed":0},"zone1":[1,0,0]}}
 // 00:00:41.005 MQT: tele/tasmota_BFBB00/SENSOR = {"Time":"2000-01-01T00:00:41","ld2450":{"detect":1,"target1":{"x":-490,"y":479,"dist":685,"speed":0}}}
 void LD2450ShowJSON(bool append) {
-  bool publish_zone;
-  bool publish_target;
-
   // check sensor presence
   if (ld2450_status.pserial == nullptr) return;
 
-  publish_target = checkForTargetSensorTimeout();
+  bool publish_target = LD2450CheckForTargetSensorTimeout();
 
   // if at least one target detected, publish targets
   if (ld2450_config.trackmode != LD2450_TRACK_OFF) { // publish targets enabled
@@ -682,29 +730,34 @@ void LD2450ShowJSON(bool append) {
     }
   }
 
-  publish_zone = checkForZoneChanges();
+  bool publish_zone = LD2450CheckForZoneChanges();
+  if (publish_zone) publish_target = true;
 
-  if (!publish_zone && !publish_target) return;
+  if (!publish_zone && !publish_target && 
+      !ld2450_status.pubVersion && !ld2450_status.pubMac) return;
 
   if (append) {
-    ld2450_status.pubtimestamp = LocalTime();
     // start of ld2450 section
     ResponseAppend_P(PSTR(",\"ld2450\":{\"detect\":%u"), ld2450_status.counter);
 
-    for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
-      publish_target = false;
-      switch (ld2450_config.trackmode) {
-      case LD2450_TRACK_IN:
-        if (ld2450_target[index].in_zone) publish_target = true;
-        break;
-      case LD2450_TRACK_OUT:
-      case LD2450_TRACK_INOUT:
-        publish_target = true;
-        break;
-      }
-      if (publish_target) {
-        ResponseAppend_P(PSTR(",\"target%u\":{\"x\":%d,\"y\":%d,\"dist\":%u,\"speed\":%d}"), 
-          index + 1, ld2450_target[index].x, ld2450_target[index].y, ld2450_target[index].dist, ld2450_target[index].speed);
+    if (publish_target) {
+      ld2450_status.pubtimestamp = LocalTime();
+
+      for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
+        publish_target = false;
+        switch (ld2450_config.trackmode) {
+        case LD2450_TRACK_IN:
+          if (ld2450_target[index].in_zone) publish_target = true;
+          break;
+        case LD2450_TRACK_OUT:
+        case LD2450_TRACK_INOUT:
+          publish_target = true;
+          break;
+        }
+        if (publish_target) {
+          ResponseAppend_P(PSTR(",\"target%u\":{\"x\":%d,\"y\":%d,\"dist\":%u,\"speed\":%d}"), 
+            index + 1, ld2450_target[index].x, ld2450_target[index].y, ld2450_target[index].dist, ld2450_target[index].speed);
+        }
       }
     }
     if (publish_zone) {
@@ -727,38 +780,48 @@ void LD2450ShowJSON(bool append) {
         }
       }    
     }
+
+    if (ld2450_status.pubVersion) {
+      ld2450_status.pubVersion = false;
+      ResponseAppend_P(PSTR(",\"version\":\"V%x.%02x.%02x%02x%02x%02x\""), 
+        ld2450_status.version[1], ld2450_status.version[0], 
+        ld2450_status.version[5], ld2450_status.version[4], ld2450_status.version[3], ld2450_status.version[2]
+      );
+    }
+    if (ld2450_status.pubMac) {
+      ld2450_status.pubMac = false;
+      ResponseAppend_P(PSTR(",\"mac\":\"%02X:%02X:%02X:%02X:%02X:%02X\""), 
+        ld2450_status.mac[0], ld2450_status.mac[1], ld2450_status.mac[2], 
+        ld2450_status.mac[3], ld2450_status.mac[4], ld2450_status.mac[5]
+      );
+    }
+
     // end of ld2450 section
     ResponseAppend_P(PSTR("}"));
   }
 }
 
 void LD2450SendCommand(const uint8_t *data, uint16_t data_len) {
-  uint8_t buffer[4 + 2 + data_len + 4];
-  uint32_t idx = 0;
+  uint8_t value = 0xFD;
 
-  // header
-  buffer[idx++] = 0xFD;
-  buffer[idx++] = 0xFC;
-  buffer[idx++] = 0xFB;
-  buffer[idx++] = 0xFA;
+  // header 0xFD 0xFC 0xFB 0xFA
+  for (uint8_t i = 0; i < 4; i++) {
+    ld2450_status.pserial->write(value--);
+  }
 
   // in-frame data length
-  buffer[idx++] = data_len;
-  buffer[idx++] = data_len >> 8;
+  ld2450_status.pserial->write(data_len);
+  ld2450_status.pserial->write(data_len >> 8);
 
   // in-frame data
   for (uint16_t i = 0; i < data_len; i++) {
-    buffer[idx++] = data[i];
+    ld2450_status.pserial->write(data[i]);
   }
 
-  // end of frame
-  buffer[idx++] = 0x04;
-  buffer[idx++] = 0x03;
-  buffer[idx++] = 0x02;
-  buffer[idx++] = 0x01;
-
-  for (uint32_t i = 0; i < idx; i++) {
-    ld2450_status.pserial->write(buffer[i]);
+  // end of frame 0x04 0x03 0x02 0x01
+  value = 0x04;
+  for (uint8_t i = 0; i < 4; i++) {
+    ld2450_status.pserial->write(value--);
   }
 }
 
@@ -858,7 +921,7 @@ void LD2450GraphRadarUpdate() {
 
   // radar zone
   for (zone = 0; zone < LD2450_ZONE_MAX; zone++) {
-    if (!zoneEnabled(zone)) continue;
+    if (!LD2450ZoneEnabled(zone)) continue;
     x1 = (int32_t)ld2450_config.zone_x1[zone] * 400 / LD2450_DIST_MAX + 400;
     x2 = (int32_t)ld2450_config.zone_x2[zone] * 400 / LD2450_DIST_MAX + 400;
     y1 = (int32_t)ld2450_config.zone_y1[zone] * 400 / LD2450_DIST_MAX + 50;
@@ -1008,7 +1071,7 @@ void LD2450GraphRadar() {
 
   // display zone num
   for (index = 0; index < LD2450_ZONE_MAX; index++) {
-    if (!zoneEnabled(index)) continue;
+    if (!LD2450ZoneEnabled(index)) continue;
     x = (int32_t)ld2450_config.zone_x1[index] * 400 / LD2450_DIST_MAX;
     y = (int32_t)ld2450_config.zone_y1[index] * 400 / LD2450_DIST_MAX;
     WSContentSend_P(PSTR("<text class='zone' x=%d y=%d>Z%d</text>\n"), x + 412, y + 64, index + 1);
@@ -1049,7 +1112,14 @@ bool Xsns114(uint32_t function) {
       result = DecodeCommand(kHLKLD2450Commands, HLKLD2450Command);
       break;
     case FUNC_EVERY_100_MSECOND:
-      if (TasmotaGlobal.uptime > 4) Ld2450Publish();
+      if (TasmotaGlobal.uptime > 4) LD2450Publish();
+      break;
+    case FUNC_EVERY_SECOND:
+      if ((TasmotaGlobal.uptime > 10) && (ld2450_status.getConfig < 5)) {
+        ld2450_status.getConfig++;
+        if (ld2450_status.getConfig == 1) LD2450GetVersion(); 
+        if (ld2450_status.getConfig == 4) LD2450GetMac(); 
+      }
       break;
     case FUNC_JSON_APPEND:
       if (ld2450_status.enabled) LD2450ShowJSON(true);
