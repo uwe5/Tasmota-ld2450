@@ -498,13 +498,6 @@ void Ld2450Detect(void) {
   }
 }
 
-void LD2450Publish(void) {
-  if (ld2450_status.enabled) {
-    // Send state change to be captured by rules
-    MqttPublishSensor();
-  }
-}
-
 /*********************************************\
  *                   Callback
 \*********************************************/
@@ -710,9 +703,6 @@ bool LD2450CheckForTargetSensorTimeout() {
 // 00:00:38.384 MQT: tele/tasmota_BFBB00/SENSOR = {"Time":"2000-01-01T00:00:38","ld2450":{"detect":1,"target1":{"x":-377,"y":466,"dist":599,"speed":0},"zone1":[1,0,0]}}
 // 00:00:41.005 MQT: tele/tasmota_BFBB00/SENSOR = {"Time":"2000-01-01T00:00:41","ld2450":{"detect":1,"target1":{"x":-490,"y":479,"dist":685,"speed":0}}}
 void LD2450ShowJSON(bool append) {
-  // check sensor presence
-  if (ld2450_status.pserial == nullptr) return;
-
   bool publish_target = LD2450CheckForTargetSensorTimeout();
 
   // if at least one target detected, publish targets
@@ -802,6 +792,9 @@ void LD2450ShowJSON(bool append) {
 }
 
 void LD2450SendCommand(const uint8_t *data, uint16_t data_len) {
+  // check sensor presence
+  if (ld2450_status.pserial == nullptr) return;
+
   uint8_t value = 0xFD;
 
   // header 0xFD 0xFC 0xFB 0xFA
@@ -836,9 +829,6 @@ void LD2450WebSensor() {
   uint8_t index, counter, position;
   uint8_t arr_pos[LD2450_TARGET_MAX];
   char str_color[8];
-
-  // check if enabled
-  if (!ld2450_status.enabled) return;
 
   // start of display
   WSContentSend_P(PSTR("<div style='font-size:10px;text-align:center;margin:4px 0px;padding:2px 6px;background:#333333;border-radius:8px;'>\n"));
@@ -1112,15 +1102,17 @@ bool Xsns114(uint32_t function) {
       result = DecodeCommand(kHLKLD2450Commands, HLKLD2450Command);
       break;
     case FUNC_EVERY_100_MSECOND:
-      if (TasmotaGlobal.uptime > 4) LD2450Publish();
-      break;
+      if ((ld2450_status.enabled) && (TasmotaGlobal.uptime > 4)) MqttPublishSensor();
+      break;     
     case FUNC_EVERY_SECOND:
-      if ((TasmotaGlobal.uptime > 10) && (ld2450_status.getConfig < 5)) {
-        ld2450_status.getConfig++;
-        if (ld2450_status.getConfig == 1) LD2450GetVersion(); 
-        if (ld2450_status.getConfig == 4) LD2450GetMac(); 
+      if (ld2450_status.enabled) {
+        if ((TasmotaGlobal.uptime > 10) && (ld2450_status.getConfig < 5)) {
+          ld2450_status.getConfig++;
+          if (ld2450_status.getConfig == 1) LD2450GetVersion(); 
+          if (ld2450_status.getConfig == 4) LD2450GetMac(); 
+        }
       }
-      break;
+      break;     
     case FUNC_JSON_APPEND:
       if (ld2450_status.enabled) LD2450ShowJSON(true);
       break;
