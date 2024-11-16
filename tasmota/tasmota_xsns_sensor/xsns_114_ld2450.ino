@@ -127,6 +127,7 @@ struct {
   uint8_t tracktime = LD2450_TRACK_TIME;                        // default publication time
   uint8_t trackmode = LD2450_TRACK_IN;
   uint8_t sensortimeout = LD2450_DEFAULT_TARGET_TIMEOUT;        // timeout to trigger inactivity
+  uint8_t getConfig = 0;
 } ld2450_config;
 
 // LD2450 status
@@ -140,7 +141,6 @@ static struct {
   bool pubVersion;                    // publish firmware version
   uint8_t mac[6];                     // LD2450 MAC
   bool pubMac;                        // publish LD2450 MAC
-  uint8_t getConfig = 0;
 } ld2450_status;
 
 // zone status
@@ -232,6 +232,7 @@ void LD2450ConfigReset() {
   ld2450_config.tracktime = LD2450_TRACK_TIME;
   ld2450_config.trackmode = LD2450_TRACK_IN;
   ld2450_config.sensortimeout = LD2450_DEFAULT_TARGET_TIMEOUT;
+  ld2450_config.getConfig = 0;
 
   LD2450SaveConfig();
 }
@@ -316,7 +317,7 @@ void CmdLD2450Bluetooth() {
       LD2450SendCommand(enableConfigCommands, sizeof(enableConfigCommands));
       LD2450SendCommand(rebootModule, sizeof(rebootModule));
       LD2450SendCommand(endConfigCommands, sizeof(endConfigCommands));
-      ld2450_status.getConfig = 0; // trigger read version & bluetooth mac
+      ld2450_config.getConfig = 0; // trigger read version & bluetooth mac
       return;
     }
   }
@@ -516,7 +517,6 @@ void LD2450InitTargets(bool markaschanged) {
     }
   }
   ld2450_status.counter = 0;
-  ld2450_status.getConfig = 0;
 }
 
 // driver initialisation
@@ -734,7 +734,7 @@ void LD2450ShowJSON(bool append) {
       ld2450_status.pubtimestamp = LocalTime();
 
       for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
-        publish_target = false;
+        publish_target = (ld2450_config.getConfig == 2);
         switch (ld2450_config.trackmode) {
         case LD2450_TRACK_IN:
           if (ld2450_target[index].in_zone) publish_target = true;
@@ -753,24 +753,19 @@ void LD2450ShowJSON(bool append) {
     if (publish_zone) {
       for (uint8_t zone = 0; zone < LD2450_ZONE_MAX; zone++) {
         bool zone_changed = false;
+        uint8_t targets_in_zone = 0;
         for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
           if (ld2450_zone[zone].target_in_zone[index] != ld2450_zone[zone].target_in_zone_old[index]) { // zone left or entered
             ld2450_zone[zone].target_in_zone_old[index] = ld2450_zone[zone].target_in_zone[index];
             zone_changed = true;
           }
+          if (ld2450_zone[zone].target_in_zone[index]) targets_in_zone++;
         }
         if (zone_changed) {
-          ResponseAppend_P(PSTR(",\"zone%u\":["), zone +1);
-          for (uint8_t index = 0; index < LD2450_TARGET_MAX; index++) {
-            if (index > 0) ResponseAppend_P(PSTR(","));
-            ResponseAppend_P(PSTR("%u"),
-              (ld2450_zone[zone].target_in_zone[index] ? 1:0));
-          }
-          ResponseAppend_P(PSTR("]"));
+          ResponseAppend_P(PSTR(",\"targetsinzone%u\":%u"), zone +1, targets_in_zone);
         }
       }    
     }
-
     if (ld2450_status.pubVersion) {
       ld2450_status.pubVersion = false;
       ResponseAppend_P(PSTR(",\"version\":\"V%x.%02x.%02x%02x%02x%02x\""), 
@@ -1105,11 +1100,17 @@ bool Xsns114(uint32_t function) {
       if ((ld2450_status.enabled) && (TasmotaGlobal.uptime > 4)) MqttPublishSensor();
       break;     
     case FUNC_EVERY_SECOND:
-      if (ld2450_status.enabled) {
-        if ((TasmotaGlobal.uptime > 10) && (ld2450_status.getConfig < 5)) {
-          ld2450_status.getConfig++;
-          if (ld2450_status.getConfig == 1) LD2450GetVersion(); 
-          if (ld2450_status.getConfig == 4) LD2450GetMac(); 
+      if ((ld2450_status.enabled) && (TasmotaGlobal.uptime > 10) && (ld2450_config.getConfig < 5)) {
+        switch (++ld2450_config.getConfig) {
+        case 1:
+          LD2450GetVersion(); 
+          break;
+        case 2:
+          LD2450InitTargets(true); // publish all zones
+          break;
+        case 3:
+          LD2450GetMac(); 
+          break;
         }
       }
       break;     
