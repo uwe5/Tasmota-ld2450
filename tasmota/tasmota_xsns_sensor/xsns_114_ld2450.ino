@@ -69,7 +69,7 @@
 #define LD2450_START_DELAY 10             // sensor startup delay
 #define LD2450_DEFAULT_TARGET_TIMEOUT 5   // timeout to trigger inactivity [sec]
 #define LD2450_DEFAULT_SAMPLE 10          // number of samples to average
-#define LD2450_DIST_MAX 6000              // default minimum detection distance [mm]
+#define LD2450_DIST_MAX 8000              // default minimum detection distance [mm]
 
 #define LD2450_TRACK_TIME 5   // publication timeout [sec]
 #define LD2450_TRACK_OFF 0    // track targets off
@@ -120,10 +120,10 @@ static struct {
 
 // LD2450 configuration
 struct {
-  int16_t zone_x1[LD2450_ZONE_MAX] = {-LD2450_DIST_MAX,0,0,0};  // x1 detection point (-6000 -> 6000 mm)
-  int16_t zone_x2[LD2450_ZONE_MAX] = {LD2450_DIST_MAX,0,0,0};   // x2 detection point (-6000 -> 6000 mm)
-  int16_t zone_y1[LD2450_ZONE_MAX] = {0,0,0,0};                 // y1 detection point (0 -> 6000 mm)
-  int16_t zone_y2[LD2450_ZONE_MAX] = {LD2450_DIST_MAX,0,0,0};   // y2 detection point (O -> 6000 mm)
+  int16_t zone_x1[LD2450_ZONE_MAX] = {-LD2450_DIST_MAX,0,0,0};  // x1 detection point (-8000 -> 8000 mm)
+  int16_t zone_x2[LD2450_ZONE_MAX] = {LD2450_DIST_MAX,0,0,0};   // x2 detection point (-8000 -> 8000 mm)
+  int16_t zone_y1[LD2450_ZONE_MAX] = {0,0,0,0};                 // y1 detection point (0 -> 8000 mm)
+  int16_t zone_y2[LD2450_ZONE_MAX] = {LD2450_DIST_MAX,0,0,0};   // y2 detection point (O -> 8000 mm)
   uint8_t tracktime = LD2450_TRACK_TIME;                        // default publication time
   uint8_t trackmode = LD2450_TRACK_IN;
   uint8_t sensortimeout = LD2450_DEFAULT_TARGET_TIMEOUT;        // timeout to trigger inactivity
@@ -830,10 +830,10 @@ void LD2450WebSensor() {
 
   // scale
   WSContentSend_P(PSTR("<div style='display:flex;padding:0px;'>\n"));
-  WSContentSend_P(PSTR("<div style='width:28%%;padding:0px;text-align:left;font-size:12px;font-weight:bold;'>LD2450</div>\n"));
+  WSContentSend_P(PSTR("<div style='width:28%%;padding:0px;text-align:left;font-size:9px;font-weight:bold;'>LD2450</div>\n"));
   WSContentSend_P(PSTR("<div style='width:6%%;padding:0px;text-align:left;'>0m</div>\n"));
-  for (index = 1; index < 6; index++) WSContentSend_P(PSTR("<div style='width:12%%;padding:0px;'>%um</div>\n"), index);
-  WSContentSend_P(PSTR("<div style='width:6%%;padding:0px;text-align:right;'>6m</div>\n"));
+  for (index = 1; index < 8; index++) WSContentSend_P(PSTR("<div style='width:9%%;padding:0px;'>%um</div>\n"), index);
+  WSContentSend_P(PSTR("<div style='width:6%%;padding:0px;text-align:right;'>8m</div>\n"));
   WSContentSend_P(PSTR("</div>\n"));
 
   // targets
@@ -1045,10 +1045,10 @@ void LD2450GraphRadar() {
 
   // radar frame circles and distance
   WSContentSend_P(PSTR("<text x=400 y=30>LD2450</text>\n"));
-  for (index = 1; index < 7; index++) {
-    x = index * sin[4] * 400 / 1000 / 6;
-    y = index * cos[4] * 400 / 1000 / 6;
-    r = index * 400 / 6;
+  for (index = 1; index < 9; index++) {
+    x = index * sin[4] * 400 / 1000 / 8;
+    y = index * cos[4] * 400 / 1000 / 8;
+    r = index * 400 / 8;
     WSContentSend_P(PSTR("<text x=%d y=%d>%dm</text>\n"), 400 + x, 40 + y, index);
     WSContentSend_P(PSTR("<text x=%d y=%d>%dm</text>\n"), 400 - 5 - x, 40 + y, index);
     WSContentSend_P(PSTR("<path d='M %d %d A %d %d 0 0 1 %d %d' />\n"), 400 + x, 50 + y, r, r, 400 - x, 50 + y);
